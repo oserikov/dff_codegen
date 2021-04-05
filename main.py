@@ -259,18 +259,20 @@ def generate_cond_methods_code(curr_diag):
     for node in curr_diag.values():
         cond_methods_codes.append(f"def {node.method}(vars):\n"
                                   f"    raise NotImplementedException()")
+    cond_methods_codes = sorted(set(cond_methods_codes))
     cond_methods_code = '\n\n'.join(cond_methods_codes)
     return cond_methods_code
 
 
 def generate_states_enum_code(curr_diag):
     states_code = "class State(Enum):"
+    states_code_lines = []
     for node_ix, node in curr_diag.items():
-        states_code += f"\n    {node.var} = auto()"
-    states_code += "\n    SYS_ERR = auto()" + \
-                   "\n    USR_ERR = auto()" + \
-                   "\n    SYS_END = auto()" + \
-                   "\n    USR_END = auto()"
+        states_code_lines.append(f"{node.var} = auto()")
+    states_code_lines.extend(["SYS_ERR = auto()", "USR_ERR = auto()",
+                        "SYS_END = auto()", "USR_END = auto()"])
+    states_code_lines = sorted(set(states_code_lines))
+    states_code += '\n    ' + '\n    '.join(states_code_lines)
     return states_code
 
 
