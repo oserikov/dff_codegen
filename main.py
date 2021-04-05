@@ -30,10 +30,10 @@ class Node:
         node_head = node_head_and_text[0]
         node_text = node_head_and_text[-1]
 
-        self.id = cell.get("id")
         self.value = cell.get("value")
         self.head = node_head
         self.text = node_text
+        self.id = cell.get("id")
         self.var = to_upper_snake_case(node_head)
         self._children = []
         self.dfs_step = self.id
@@ -55,9 +55,9 @@ class Node:
     @property
     def method(self):
         if self.is_usr():
-            method = self.var.lower() + "_request"
-        else:
             method = self.var.lower() + "_response"
+        else:
+            method = self.var.lower() + "_request"
         return method
 
     def _transition_method(self):
@@ -143,23 +143,31 @@ def process_diagram(diagram_content):
             else:
                 latent_sys_node = nodes[latent_sys_node_var]
 
-            new_edgelist.append(Edge({"source": source_node.id,
-                                      "target": latent_usr_node.id}))
-            new_edgelist.append(Edge({"source": latent_usr_node.id,
-                                      "target": latent_sys_node.id}))
-            new_edgelist.append(Edge({"source": latent_sys_node.id,
-                                      "target": target_node.id}))
+            new_edgelist.append(Edge({"source": source_node.var,
+                                      "target": latent_usr_node.var}))
+            new_edgelist.append(Edge({"source": latent_usr_node.var,
+                                      "target": latent_sys_node.var}))
+            new_edgelist.append(Edge({"source": latent_sys_node.var,
+                                      "target": target_node.var}))
 
             latent_sys_node.dfs_step = latent_usr_node.dfs_step =\
                 target_node.dfs_step = source_node.dfs_step
         else:
-            new_edgelist.append(edge)
+            new_edgelist.append(Edge({"source": source_node.var,
+                                      "target": target_node.var}))
+
+    new_nodes = {}
+    for node_id, node in nodes.items():
+        if node.var not in new_nodes:
+            new_nodes[node.var] = node
 
     for edge in new_edgelist:
-        source_node = nodes[edge.source]
-        target_node = nodes[edge.target]
-
-        nodes[source_node.id].children.append(target_node)
+        source_node = new_nodes[edge.source]
+        target_node = new_nodes[edge.target]
+        source_node.children.append(target_node)
+    for node in new_nodes.values():
+        node.id = node.var
+    nodes = new_nodes
 
     if not nodes:
         return {}
@@ -254,11 +262,49 @@ def generate_nodes_code(curr_diag: Dict[str, Node]):
     return nodes_code
 
 
+def generate_request_method_body(method_name):
+    body = '\n'.join(["    flag = False",
+                      "    raise NotImplementedException()  # YOUR CODE HERE",
+                      '    logger.info(f"weekend_request={flag}")',
+                      "    return flag"])
+    return body
+
+
+def generate_response_method_body(method_name):
+    body = f"""    logger.info("exec {method_name}")
+    try:
+        state_utils.set_confidence(vars, MUST_CONTINUE_CONFIDENCE)
+        state_utils.set_can_continue(vars)
+        response_text = ''  # YOUR CODE HERE
+        raise NotImplementedException()  # YOUR CODE HERE
+        return response_text
+    except NotImplementedException:
+        raise NotImplementedException('you should implement {method_name}')
+    except Exception as exc:
+        logger.exception(exc)
+        sentry_sdk.capture_exception(exc)
+        state_utils.set_confidence(vars, CANNOT_CONTINUE_CONFIDENCE)
+        return error_response(vars)"""
+    return body
+
+
+
+def generate_method_code(method_name):
+    code = f"def {method_name}(vars):\n"
+    if method_name.endswith("request"):
+        code += generate_request_method_body(method_name)
+    elif method_name.endswith("response"):
+        code += generate_response_method_body(method_name)
+    else:
+        code += "    raise NotImplementedException()"
+    return code
+
+
 def generate_cond_methods_code(curr_diag):
     cond_methods_codes = []
     for node in curr_diag.values():
-        cond_methods_codes.append(f"def {node.method}(vars):\n"
-                                  f"    raise NotImplementedException()")
+        method_code = generate_method_code(node.method)
+        cond_methods_codes.append(method_code)
     cond_methods_codes = sorted(set(cond_methods_codes))
     cond_methods_code = '\n\n'.join(cond_methods_codes)
     return cond_methods_code

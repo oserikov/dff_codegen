@@ -15,6 +15,39 @@ logger = logging.getLogger(__name__)
 
 {STATES ENUM}
 
+DIALOG_BEGINNING_START_CONFIDENCE = 0.98
+DIALOG_BEGINNING_CONTINUE_CONFIDENCE = 0.9
+DIALOG_BEGINNING_SHORT_ANSWER_CONFIDENCE = 0.98
+MIDDLE_DIALOG_START_CONFIDENCE = 0.7
+SUPER_CONFIDENCE = 1.0
+HIGH_CONFIDENCE = 0.98
+
+MUST_CONTINUE_CONFIDENCE = 0.98
+CANNOT_CONTINUE_CONFIDENCE = 0.0
+
+
+
+COMMENTS = {
+    "neutral": ["Ok. ", "Oh. ", "Huh. ", "Well. ", "Gotcha. ", "Hmm. ", "Aha. "],
+    "positive": ["Sounds cool! ", "Great! ", "Wonderful! "],
+    "negative": ["Huh... ", "Sounds sad... ", "Sorry... "],
+}
+
+################################################################################
+# utils
+
+std_acknowledgements = {
+    "neutral": ["Ok. ", "Oh. ", "Huh. ", "Well. ", "Gotcha. ", "Hmm. ", "Aha. "],
+    "positive": ["Sounds cool! ", "Great! ", "Wonderful! "],
+    "negative": ["Huh... ", "Sounds sad... ", "Sorry... "],
+}
+
+def get_sentiment_acknowledgement(vars, acknowledgements=None):
+    acknowledgements = std_acknowledgements.update(acknowledgements) if acknowledgements else std_acknowledgements
+    return acknowledgements.get(state_utils.get_human_sentiment(vars), [""])
+
+################################################################################
+
 {METHODS}
 
 {TRANSITIONS}
